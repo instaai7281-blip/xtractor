@@ -16,6 +16,31 @@ async def account_login(bot, m):
             shutil.rmtree(temp_dir)
         os.makedirs(temp_dir)
         links, file_name = await masterdl.process_text_file_or_input(input)
+        
+        # --- NEW CLEANING LOGIC ---
+        # Filter out empty links and image links (thumbnails)
+        clean_links = []
+        for link in links:
+            # Skip if link is empty
+            if not link:
+                continue
+            
+            # Check if it's a thumbnail/image
+            url_to_check = ""
+            if isinstance(link, (list, tuple)) and len(link) >= 2:
+                url_to_check = str(link[1]).lower()
+            elif isinstance(link, str):
+                url_to_check = link.lower()
+                
+            if any(url_to_check.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                LOGGER.info(f"Skipping thumbnail/image link: {url_to_check}")
+                continue
+            
+            clean_links.append(link)
+            
+        links = clean_links
+        # --------------------------
+
         await editable.edit(f"Total links🔗 found are __{len(links)}__\n\nSend From where you want to download initial is __1__")
         if m.chat.id not in Config.AUTH_USERS:
             print(f"User ID not in AUTH_USERS", m.chat.id)
