@@ -2,6 +2,7 @@ from config import Config
 from pyrogram import Client as bot, idle
 import asyncio
 import logging
+from aiohttp import web
 
 logging.basicConfig(
     level=logging.INFO,    
@@ -13,6 +14,18 @@ LOGGER.info("Live log streaming to telegram.")
 
 plugins = dict(root="plugins")
 
+async def health_check(request):
+    return web.Response(text="Bot is running!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    await site.start()
+    LOGGER.info("Health check server started on port 8080")
+
 if __name__ == "__main__":
     bot = bot(
         "Bot",
@@ -23,8 +36,12 @@ if __name__ == "__main__":
         plugins=plugins,
         workers=10,
     )
+    
     async def main():
         await bot.start()
+        # Start the health check server for Render
+        await start_web_server()
+        
         bot_info = await bot.get_me()
         LOGGER.info(f"<--- @{bot_info.username} Started --->")
         for user_id in Config.AUTH_USERS:
@@ -34,5 +51,6 @@ if __name__ == "__main__":
                 LOGGER.error(f"Failed to send message to user {user_id}: {e}")
                 continue
         await idle()
+        
     asyncio.get_event_loop().run_until_complete(main())
     LOGGER.info("<--- Bot Stopped --->")
